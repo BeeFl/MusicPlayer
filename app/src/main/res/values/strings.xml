@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MusicPlayer</string>
+    <string name="fab_up">向上</string>
+    <string name="shared_pref_current_uri">person.shilei.chat.CURRENT_URI</string>
+</resources>

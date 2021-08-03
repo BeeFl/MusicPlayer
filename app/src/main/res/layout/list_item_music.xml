@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data>
+        <variable
+            name="song"
+            type="person.shilei.musicplayer.model.Song" />
+        <variable
+            name="position"
+            type="Integer" />
+        <variable
+            name="musicListener"
+            type="person.shilei.chat.ui.MusicListener" />
+    </data>
+
+    <RelativeLayout
+        android:id="@+id/background"
+        android:padding="8dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:onClick="@{() -> musicListener.onClick(song,position)}">
+
+        <TextView
+            android:id="@+id/music_name"
+            android:layout_alignParentStart="true"
+            tools:text="Manta"
+            android:layout_toStartOf="@id/music_format"
+            style="@style/song_name" />
+
+        <TextView
+            android:id="@+id/singer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toStartOf="@id/music_time"
+            android:layout_marginTop="4dp"
+            android:layout_alignParentStart="true"
+            android:layout_below="@id/music_name"
+            tools:text="刘伯辛Lexie" />
+
+        <TextView
+            android:id="@+id/music_format"
+            android:layout_alignBaseline="@id/music_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            tools:text="flac" />
+
+        <TextView
+            android:id="@+id/music_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBaseline="@id/singer"
+            android:layout_marginTop="8dp"
+            android:layout_alignParentEnd="true"
+            android:layout_below="@id/music_format"
+            tools:text="3:56" />
+
+
+    </RelativeLayout>
+</layout>
