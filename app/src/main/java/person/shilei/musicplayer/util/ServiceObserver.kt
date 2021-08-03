@@ -15,7 +15,7 @@ object ServiceObserver {
 //    var musics:List<Song>? = null
     val sortedMusics = MutableLiveData<MutableList<Song>>()
 
-    val sortMode = MutableLiveData<SortedMode>()
+    val sortMode = MutableLiveData(SortedMode.ADDED_DATE)
     //观察音乐是否在播放
     val isPlaying = MutableLiveData<Boolean>()
     var mediaPlayerCreated = MutableLiveData(false)
@@ -53,11 +53,15 @@ object ServiceObserver {
             }?.toMutableList()
         }
 
-        currentIndex.value = sortedMusics.value?.indexOf(
-            sortedMusics.value?.find {
-                it.id == currentSongId
-            }
-        )
+        if (currentIndex.value != null){
+            currentIndex.value = sortedMusics.value?.indexOf(
+                sortedMusics.value?.find {
+                    it.id == currentSongId
+                }
+            )
+        }
+
+
     }
 
     fun nextSong(){
