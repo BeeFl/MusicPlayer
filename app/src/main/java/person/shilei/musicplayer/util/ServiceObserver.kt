@@ -12,8 +12,10 @@ import java.util.*
 import kotlin.random.Random
 
 object ServiceObserver {
-    var musics:List<Song>? = null
+//    var musics:List<Song>? = null
+    val sortedMusics = MutableLiveData<MutableList<Song>>()
 
+    val sortMode = MutableLiveData<SortedMode>()
     //观察音乐是否在播放
     val isPlaying = MutableLiveData<Boolean>()
     var mediaPlayerCreated = MutableLiveData(false)
@@ -33,22 +35,47 @@ object ServiceObserver {
     var currentFlowMode = 0
     var isLooping = MutableLiveData<Boolean>()
 
+    fun updateSortedMusics(sm:SortedMode){
+        val smlist = sortedMusics.value
+        val currentSongId = currentIndex.value?.let { smlist?.get(it)?.id }
+
+        when (sm) {
+            SortedMode.ADDED_DATE_REVERSE -> {
+                sortedMusics.value = smlist?.sortedBy {
+                    it.addedDate
+                }?.toMutableList()
+            }
+            SortedMode.ADDED_DATE -> sortedMusics.value = smlist?.sortedByDescending {
+                it.addedDate
+            }?.toMutableList()
+            SortedMode.SINGER_NAME -> sortedMusics.value = smlist?.sortedBy {
+                it.singer
+            }?.toMutableList()
+        }
+
+        currentIndex.value = sortedMusics.value?.indexOf(
+            sortedMusics.value?.find {
+                it.id == currentSongId
+            }
+        )
+    }
+
     fun nextSong(){
         if (currentFlowMode == 0 || currentFlowMode == 2){
-            currentIndex.value = currentIndex.value?.plus(1)?.rem(musics?.size!!)
+            currentIndex.value = sortedMusics.value?.size?.let { currentIndex.value?.plus(1)?.rem(it) }
         }else if (currentFlowMode == 1){
-            currentIndex.value = Random.nextInt(musics?.size!!)
+            currentIndex.value = Random.nextInt(sortedMusics.value?.size!!)
         }
     }
 
     fun prevSong(){
         if (currentFlowMode == 0 || currentFlowMode == 2){
             if (currentIndex.value == 0){
-                currentIndex.value = musics?.size!!
+                currentIndex.value = sortedMusics.value?.size!!
             }
             currentIndex.value = currentIndex.value?.minus(1)
         }else if (currentFlowMode == 1){
-            currentIndex.value = Random.nextInt(musics?.size!!)
+            currentIndex.value = Random.nextInt(sortedMusics.value?.size!!)
         }
     }
 

@@ -5,7 +5,6 @@ import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.lifecycle.ViewModelProvider
 import android.os.Bundle
 import androidx.fragment.app.Fragment
@@ -20,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import person.shilei.musicplayer.R
@@ -31,6 +31,7 @@ import person.shilei.musicplayer.model.Song
 import person.shilei.musicplayer.service.BackGroundMusicService
 import person.shilei.musicplayer.util.LocalMusicUtils
 import person.shilei.musicplayer.util.ServiceObserver
+import person.shilei.musicplayer.util.SortedMode
 import timber.log.Timber
 import kotlin.random.Random
 
@@ -68,7 +69,7 @@ class MusicFragment : Fragment() {
         //检查读写权限，若有，则请求本地音乐列表数据
         if (checkWriteAndReadPermission()){
             Timber.i("checkStoragePermission: true")
-            ServiceObserver.musics = LocalMusicUtils.getMusic(requireContext())
+            ServiceObserver.sortedMusics.value = LocalMusicUtils.getMusic(requireContext())
         }
 
     }
@@ -85,22 +86,25 @@ class MusicFragment : Fragment() {
         //viewModel里面变量的观察者
         observeMethods()
 
+
+
+
         //数据源提交给列表的适配器
-        if (ServiceObserver.musics.isNullOrEmpty()){
-            //没有完整权限的时候（一般就只有一次）
-            viewModel.musicsPrepared.observe(viewLifecycleOwner){ prepared ->
-                if (prepared == true){
-                    ServiceObserver.musics.let {
-                        viewModel.submitMusics2Adapter(it!!,activity)
-                    }
-                }
-            }
-        }else{
-            //有完整权限的时候
-            ServiceObserver.musics.let {
-                viewModel.submitMusics2Adapter(it!!,activity)
-            }
-        }
+//        if (ServiceObserver.musics.isNullOrEmpty()){
+//            //没有完整权限的时候（一般就只有一次）
+//            viewModel.musicsPrepared.observe(viewLifecycleOwner){ prepared ->
+//                if (prepared == true){
+//                    ServiceObserver.musics.let {
+//                        viewModel.submitMusics2Adapter(it!!,activity)
+//                    }
+//                }
+//            }
+//        }else{
+//            //有完整权限的时候
+//            ServiceObserver.musics.let {
+//                viewModel.submitMusics2Adapter(it!!,activity)
+//            }
+//        }
 
         //observe the media player entity whether created
         observeMediaPlayerCreated()
@@ -114,7 +118,26 @@ class MusicFragment : Fragment() {
         //observe song's playing progress to update the seekbar
         observeCurrentPositionUpdate()
 
+        //observe song's sort mode
+        observeSortedModeUpdate()
+
+        //observe sortedlist to update the recyclerview
+        //observe the datasource - musics
+        observeSortedMusics2UpdateRCView()
+
         return binding.root
+    }
+
+    private fun observeSortedMusics2UpdateRCView() {
+        ServiceObserver.sortedMusics.observe(viewLifecycleOwner){
+            viewModel.submitSortedMusics2Adapter(it)
+        }
+    }
+
+    private fun observeSortedModeUpdate() {
+        ServiceObserver.sortMode.observe(viewLifecycleOwner){
+            ServiceObserver.updateSortedMusics(it)
+        }
     }
 
     private fun observeMediaPlayerCreated() {
@@ -142,8 +165,9 @@ class MusicFragment : Fragment() {
             if (currentIndx != null){
                 viewModel.adapter.selectItem(currentIndx)
                 binding.musicRecyclerview.scrollToPosition(currentIndx)
-                (activity as AppCompatActivity).supportActionBar?.title = "本地音乐(第${currentIndx+1}/${ServiceObserver.musics?.size}首歌)"
-                val curSong = ServiceObserver.musics?.get(currentIndx)
+                (activity as AppCompatActivity).supportActionBar?.title =
+                    "本地音乐(第${currentIndx+1}/${ServiceObserver.sortedMusics.value?.size}首歌)"
+                val curSong = ServiceObserver.sortedMusics.value?.get(currentIndx)
                 val index = curSong?.name?.lastIndexOf('.')
                 val musicName = index?.let { curSong.name.substring(0, it) }
                 binding.musicName.text = musicName
@@ -206,6 +230,14 @@ class MusicFragment : Fragment() {
         prevSongButtonClickListener()
         //choose the play mode
         spinnerItemSelectedListener()
+        //sort the music list
+        sortButtonClickListener()
+    }
+
+    private fun sortButtonClickListener() {
+        binding.sort.setOnClickListener {
+            findNavController().navigate(R.id.action_musicFragment_to_sortBottomSheetDialog)
+        }
     }
 
     private fun spinnerItemSelectedListener() {
@@ -277,7 +309,7 @@ class MusicFragment : Fragment() {
 
     private fun fabTopClickListener() {
         binding.top.setOnClickListener {
-            if (!ServiceObserver.musics.isNullOrEmpty()){
+            if (!ServiceObserver.sortedMusics.value.isNullOrEmpty()){
                 binding.musicRecyclerview.scrollToPosition(0)
             }
         }
@@ -300,14 +332,14 @@ class MusicFragment : Fragment() {
                         ServiceObserver.currentIndex.value = 0
                     }else{
                         //random play
-                        ServiceObserver.currentIndex.value = ServiceObserver.musics?.size?.let { it1 ->
+                        ServiceObserver.currentIndex.value = ServiceObserver.sortedMusics.value?.size?.let { it1 ->
                             Random.nextInt(
                                 it1
                             )
                         }
                     }
                     val intent = Intent(activity,BackGroundMusicService::class.java)
-                    intent.putExtra("music_uri", ServiceObserver.musics?.get(0)?.path.toString())
+                    intent.putExtra("music_uri", ServiceObserver.sortedMusics.value?.get(0)?.path.toString())
                     requireActivity().startService(intent)
                 }
             }
@@ -323,7 +355,7 @@ class MusicFragment : Fragment() {
         viewModel.permissionGranted.observe(viewLifecycleOwner){granted ->
             if (granted == true){
                 //用户点击了运行权限，这时候请求音乐数据
-                ServiceObserver.musics = LocalMusicUtils.getMusic(requireContext())
+                ServiceObserver.sortedMusics.value = LocalMusicUtils.getMusic(requireContext())
                 viewModel.musicsPrepared.value = true
                 viewModel.onPermissionGranted()
             }

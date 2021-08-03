@@ -9,5 +9,14 @@
         android:id="@+id/musicFragment"
         android:name="person.shilei.musicplayer.ui.MusicFragment"
         android:label="MusicFragment"
-        tools:layout="@layout/fragment_music"/>
+        tools:layout="@layout/fragment_music">
+        <action
+            android:id="@+id/action_musicFragment_to_sortBottomSheetDialog"
+            app:destination="@id/sortBottomSheetDialog" />
+    </fragment>
+    <dialog
+        android:id="@+id/sortBottomSheetDialog"
+        android:name="person.shilei.musicplayer.ui.SortBottomSheetDialog"
+        android:label="SortBottomSheetDialog"
+        tools:layout="@layout/sort_bottom_sheet_layout"/>
 </navigation>

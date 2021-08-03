@@ -142,7 +142,7 @@ class BackGroundMusicService : Service(), MediaPlayer.OnPreparedListener,
         ServiceObserver.currentIndex.observe(this){
             if (it != null){
                 if (ServiceObserver.mediaPlayerCreated.value == true){
-                    ServiceObserver.currentUri.value = ServiceObserver.musics?.get(it)?.path
+                    ServiceObserver.currentUri.value = ServiceObserver.sortedMusics.value?.get(it)?.path
                 }
             }
         }

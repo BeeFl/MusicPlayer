@@ -9,5 +9,6 @@ data class Song(
     val duration:Int,
     val path: Uri?,
     val albumId:Long,
-    val id:Long
+    val id:Long,
+    val addedDate: Int
 )

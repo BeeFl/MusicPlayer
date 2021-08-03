@@ -6,7 +6,6 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import person.shilei.musicplayer.model.Song
-import timber.log.Timber
 
 object LocalMusicUtils {
 
@@ -47,6 +46,9 @@ object LocalMusicUtils {
                 val albumId =
                     cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID))
 
+                val addedDate =
+                    cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED))
+
                 //把歌曲名字和歌手切割开,如果文件大于800KB，则为音乐文件
                 if (size > 1000 * 800) {
                     //将音乐文件名分割为歌曲名和歌手名
@@ -54,7 +56,7 @@ object LocalMusicUtils {
                     name = pair.first
                     singer = pair.second
 //                    Timber.i("$name : $singer")
-                    val song = Song(name,singer,size,duration,uri,albumId,id)
+                    val song = Song(name,singer,size,duration,uri,albumId,id,addedDate)
                     list.add(song)
                 }
 

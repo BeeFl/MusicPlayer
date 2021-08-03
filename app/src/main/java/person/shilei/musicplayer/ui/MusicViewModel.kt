@@ -40,4 +40,9 @@ class MusicViewModel : ViewModel() {
         adapter.notifyDataSetChanged()
         (activity as AppCompatActivity).supportActionBar?.title = "本地音乐(共${it.size}首歌)"
     }
+
+    fun submitSortedMusics2Adapter(it: MutableList<Song>){
+        adapter.musics = it
+        adapter.notifyDataSetChanged()
+    }
 }
