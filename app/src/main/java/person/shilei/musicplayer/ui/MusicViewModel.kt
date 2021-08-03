@@ -4,7 +4,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import person.shilei.chat.ui.MusicAdapter
 import person.shilei.musicplayer.model.Song
 
 class MusicViewModel : ViewModel() {
@@ -30,6 +29,12 @@ class MusicViewModel : ViewModel() {
 
     }
 
+    /**
+     * 将音乐数据源提交给adapter
+     *
+     * @param it
+     * @param activity
+     */
     fun submitMusics2Adapter(it: List<Song>, activity: FragmentActivity?) {
         adapter.musics = it.toMutableList()
         adapter.notifyDataSetChanged()

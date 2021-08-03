@@ -1,10 +1,11 @@
-package person.shilei.chat.ui
+package person.shilei.musicplayer.ui
 
 import android.Manifest
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.lifecycle.ViewModelProvider
 import android.os.Bundle
 import androidx.fragment.app.Fragment
@@ -22,11 +23,12 @@ import androidx.databinding.DataBindingUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import person.shilei.musicplayer.R
+import person.shilei.musicplayer.adapter.SpinnerItemSelectedListener
+import person.shilei.musicplayer.adapter.StopTrackingTouchListener
 import person.shilei.musicplayer.databinding.FragmentMusicBinding
 import person.shilei.musicplayer.databinding.ListItemMusicBinding
 import person.shilei.musicplayer.model.Song
 import person.shilei.musicplayer.service.BackGroundMusicService
-import person.shilei.musicplayer.ui.MusicViewModel
 import person.shilei.musicplayer.util.LocalMusicUtils
 import person.shilei.musicplayer.util.ServiceObserver
 import timber.log.Timber
@@ -47,7 +49,7 @@ class MusicFragment : Fragment() {
                     Timber.i("$permission is not Granted")
                 }
             }
-            if (grantedCount == 3){
+            if (grantedCount == 2){
                 Toast.makeText(requireContext(),"您的权限够了",Toast.LENGTH_SHORT).show()
                 viewModel.permissionGranted.value = true
             }else{
@@ -74,126 +76,74 @@ class MusicFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         binding = DataBindingUtil.inflate(inflater, R.layout.fragment_music,container,false)
 
         //给音乐列表定义适配器，并传入自定义的item点击监听器
-        viewModel.adapter = MusicAdapter(MusicListener {song, position ->
-            //点击的item的position对应音乐列表的索引，索引改变会触发观察者模式
-            ServiceObserver.currentIndex.value = position
+        initMusicAdapter()
 
-//            Toast.makeText(requireContext(),"${song.name} clicked",Toast.LENGTH_SHORT).show()
-            Timber.i("song's path: ${song.path}")
+        //viewModel里面变量的观察者
+        observeMethods()
 
-            if (ServiceObserver.mediaPlayerCreated.value == true){
-                ServiceObserver.currentUri.value = song.path
-            }else{
-                val intent = Intent(activity,BackGroundMusicService::class.java)
-                intent.putExtra("music_uri",song.path.toString())
-                requireActivity().startService(intent)
-            }
-
-        })
-
-        viewModel.permissionGranted.observe(viewLifecycleOwner){granted ->
-            if (granted == true){
-                //用户点击了运行权限，这时候请求音乐数据
-                ServiceObserver.musics = LocalMusicUtils.getMusic(requireContext())
-                viewModel.musicsPrepared.value = true
-                viewModel.onPermissionGranted()
-            }
-        }
-
-        binding.musicRecyclerview.adapter = viewModel.adapter
-
+        //数据源提交给列表的适配器
         if (ServiceObserver.musics.isNullOrEmpty()){
-            viewModel.musicsPrepared.observe(viewLifecycleOwner){
-                if (it == true){
+            //没有完整权限的时候（一般就只有一次）
+            viewModel.musicsPrepared.observe(viewLifecycleOwner){ prepared ->
+                if (prepared == true){
                     ServiceObserver.musics.let {
                         viewModel.submitMusics2Adapter(it!!,activity)
                     }
                 }
             }
         }else{
+            //有完整权限的时候
             ServiceObserver.musics.let {
                 viewModel.submitMusics2Adapter(it!!,activity)
             }
         }
 
+        //observe the media player entity whether created
+        observeMediaPlayerCreated()
 
-        binding.play.setOnClickListener {
-            if (ServiceObserver.isPlaying.value == true){
-                Timber.i("想要暂停音乐")
-                ServiceObserver.actionPause.value = true
-            }else if (ServiceObserver.isPlaying.value == false){
-                Timber.i("想要播放音乐")
-                ServiceObserver.actionPause.value = false
-            }else{
-                if (ServiceObserver.currentFlowMode == 0){
-                    ServiceObserver.currentIndex.value = 0
-                }else{
-                    ServiceObserver.currentIndex.value = ServiceObserver.musics?.size?.let { it1 ->
-                        Random.nextInt(
-                            it1
-                        )
-                    }
-                }
+        //观察是否正在播放音乐
+        observeIsPlaying()
 
-                val intent = Intent(activity,BackGroundMusicService::class.java)
-                intent.putExtra("music_uri", ServiceObserver.musics?.get(0)?.path.toString())
-                requireActivity().startService(intent)
-            }
-        }
+        //observe current song's index change for update ui
+        observeCurrentIndexUpdate()
 
-        binding.top.setOnClickListener {
-            if (!ServiceObserver.musics.isNullOrEmpty()){
-                binding.musicRecyclerview.scrollToPosition(0)
-            }
-        }
+        //observe song's playing progress to update the seekbar
+        observeCurrentPositionUpdate()
 
-        binding.musicRecyclerview.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                super.onScrolled(recyclerView, dx, dy)
-                if (dy > 0) {
-                    // Scrolling down
-                    binding.top.visibility = View.GONE
-                } else {
-                    // Scrolling up
-                    binding.top.visibility = View.VISIBLE
-                }
-            }
-        })
+        return binding.root
+    }
 
-        binding.musicName.isSelected = true
-        binding.singer.isSelected = true
-
-        val animator = ObjectAnimator.ofFloat(binding.albumImage, View.ROTATION, -360f, 0f)
-        animator.duration = 3000
-        animator.repeatCount = ValueAnimator.INFINITE
-        animator.interpolator = LinearInterpolator()
-
-        ServiceObserver.isPlaying.observe(viewLifecycleOwner){
-            Timber.i("歌曲是否正在播放：$it")
+    private fun observeMediaPlayerCreated() {
+        ServiceObserver.mediaPlayerCreated.observe(viewLifecycleOwner){
             if (it == true){
-                binding.play.setBackgroundResource(R.drawable.ic_pause)
-//                animator.repeatMode = ValueAnimator.INFINITE
-                animator.start()
-            }else if(it == false){
-                binding.play.setBackgroundResource(R.drawable.ic_play)
-                animator.pause()
-//                binding.albumImage.clearAnimation()
+                binding.seekbar.visibility = View.VISIBLE
             }else{
-                //隐藏进度条
                 binding.seekbar.visibility = View.INVISIBLE
             }
         }
+    }
 
-        ServiceObserver.currentIndex.observe(viewLifecycleOwner){
-            if (it != null){
-                viewModel.adapter.selectItem(it)
-                binding.musicRecyclerview.scrollToPosition(it)
-                (activity as AppCompatActivity).supportActionBar?.title = "本地音乐(第${it+1}/${ServiceObserver.musics?.size}首歌)"
-                val curSong = ServiceObserver.musics?.get(it)
+    private fun observeCurrentPositionUpdate() {
+        ServiceObserver.currentPosition.observe(viewLifecycleOwner){
+            if (ServiceObserver.musicDuration != 0){
+                val time = ServiceObserver.musicDuration
+                val max = binding.seekbar.max
+                binding.seekbar.progress = it * max / time
+            }
+        }
+    }
+
+    private fun observeCurrentIndexUpdate() {
+        ServiceObserver.currentIndex.observe(viewLifecycleOwner){ currentIndx ->
+            if (currentIndx != null){
+                viewModel.adapter.selectItem(currentIndx)
+                binding.musicRecyclerview.scrollToPosition(currentIndx)
+                (activity as AppCompatActivity).supportActionBar?.title = "本地音乐(第${currentIndx+1}/${ServiceObserver.musics?.size}首歌)"
+                val curSong = ServiceObserver.musics?.get(currentIndx)
                 val index = curSong?.name?.lastIndexOf('.')
                 val musicName = index?.let { curSong.name.substring(0, it) }
                 binding.musicName.text = musicName
@@ -210,48 +160,56 @@ class MusicFragment : Fragment() {
                 }
             }
         }
+    }
 
-        ServiceObserver.currentPosition.observe(viewLifecycleOwner){
-//            Timber.i("current position: $it")
-            if (ServiceObserver.musicDuration != 0){
-                val time = ServiceObserver.musicDuration
-                val max = binding.seekbar.max
-                binding.seekbar.progress = it * max / time
+    private fun observeIsPlaying() {
+        val animator = ObjectAnimator.ofFloat(binding.albumImage, View.ROTATION, -360f, 0f)
+        animator.duration = 3000
+        animator.repeatCount = ValueAnimator.INFINITE
+        animator.interpolator = LinearInterpolator()
+
+        ServiceObserver.isPlaying.observe(viewLifecycleOwner){
+            Timber.i("歌曲是否正在播放：$it")
+            when (it) {
+                true -> {
+                    binding.play.setBackgroundResource(R.drawable.ic_pause)
+                    animator.start()
+                }
+                false -> {
+                    binding.play.setBackgroundResource(R.drawable.ic_play)
+                    animator.pause()
+                }
+                else -> {
+                    //隐藏进度条
+                    binding.seekbar.visibility = View.INVISIBLE
+                }
             }
         }
+    }
 
-        ServiceObserver.mediaPlayerCreated.observe(viewLifecycleOwner){
-            if (it == true){
-                binding.seekbar.visibility = View.VISIBLE
-            }else{
-                binding.seekbar.visibility = View.INVISIBLE
-            }
-        }
 
-        binding.seekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        //播放、暂停音乐
+        playButtonClickListener()
+        //向上按钮
+        fabTopClickListener()
+        //recognize scroll up or down
+        recyclerviewScrollListener()
+        //realize text marquee effect
+        textviewMarquee()
+        //change seekbar progress to control the song's progress
+        seekbarChangeListener()
+        //next song
+        nextSongButtonClickListener()
+        //next song
+        prevSongButtonClickListener()
+        //choose the play mode
+        spinnerItemSelectedListener()
+    }
 
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {
-
-            }
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                ServiceObserver.seekToPosition.value = seekBar?.progress
-            }
-
-        })
-
-        binding.next.setOnClickListener {
-            ServiceObserver.nextSong()
-        }
-
-        binding.prev.setOnClickListener {
-            ServiceObserver.prevSong()
-        }
-
-        binding.spinner.onItemSelectedListener = object :AdapterView.OnItemSelectedListener{
+    private fun spinnerItemSelectedListener() {
+        binding.spinner.onItemSelectedListener = object : SpinnerItemSelectedListener(){
             override fun onItemSelected(
                 parent: AdapterView<*>?,
                 view: View?,
@@ -259,40 +217,142 @@ class MusicFragment : Fragment() {
                 id: Long
             ) {
                 Timber.i("你点击了：$position")
-                if (position == 1){
-                    ServiceObserver.currentFlowMode = 1
-                    ServiceObserver.isLooping.value = false
-                }else if(position == 2){
-                    ServiceObserver.currentFlowMode = 2
-                    ServiceObserver.isLooping.value = true
-                }else{
-                    ServiceObserver.currentFlowMode = 0
-                    ServiceObserver.isLooping.value = false
+                when (position) {
+                    1 -> {
+                        ServiceObserver.currentFlowMode = 1
+                        ServiceObserver.isLooping.value = false
+                    }
+                    2 -> {
+                        ServiceObserver.currentFlowMode = 2
+                        ServiceObserver.isLooping.value = true
+                    }
+                    else -> {
+                        ServiceObserver.currentFlowMode = 0
+                        ServiceObserver.isLooping.value = false
+                    }
                 }
             }
-
-            override fun onNothingSelected(parent: AdapterView<*>?) {
-                TODO("Not yet implemented")
-            }
-
         }
+    }
 
-        return binding.root
+    private fun prevSongButtonClickListener() {
+        binding.prev.setOnClickListener {
+            ServiceObserver.prevSong()
+        }
+    }
+
+    private fun nextSongButtonClickListener() {
+        binding.next.setOnClickListener {
+            ServiceObserver.nextSong()
+        }
+    }
+
+    private fun seekbarChangeListener() {
+        binding.seekbar.setOnSeekBarChangeListener(object : StopTrackingTouchListener() {
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                ServiceObserver.seekToPosition.value = seekBar?.progress
+            }
+        })
+    }
+
+    private fun textviewMarquee() {
+        binding.musicName.isSelected = true
+        binding.singer.isSelected = true
+    }
+
+    private fun recyclerviewScrollListener() {
+        binding.musicRecyclerview.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                if (dy > 0) {
+                    // Scrolling down
+                    binding.top.visibility = View.GONE
+                } else {
+                    // Scrolling up
+                    binding.top.visibility = View.VISIBLE
+                }
+            }
+        })
+    }
+
+    private fun fabTopClickListener() {
+        binding.top.setOnClickListener {
+            if (!ServiceObserver.musics.isNullOrEmpty()){
+                binding.musicRecyclerview.scrollToPosition(0)
+            }
+        }
+    }
+
+    private fun playButtonClickListener() {
+        binding.play.setOnClickListener {
+            when (ServiceObserver.isPlaying.value) {
+                true -> {
+                    Timber.i("想要暂停音乐")
+                    ServiceObserver.actionPause.value = true
+                }
+                false -> {
+                    Timber.i("想要播放音乐")
+                    ServiceObserver.actionPause.value = false
+                }
+                else -> {
+                    if (ServiceObserver.currentFlowMode == 0){
+                        //ordered play
+                        ServiceObserver.currentIndex.value = 0
+                    }else{
+                        //random play
+                        ServiceObserver.currentIndex.value = ServiceObserver.musics?.size?.let { it1 ->
+                            Random.nextInt(
+                                it1
+                            )
+                        }
+                    }
+                    val intent = Intent(activity,BackGroundMusicService::class.java)
+                    intent.putExtra("music_uri", ServiceObserver.musics?.get(0)?.path.toString())
+                    requireActivity().startService(intent)
+                }
+            }
+        }
+    }
+
+    private fun observeMethods() {
+        //观察用户是否给了读写权限
+        observePemissionGranted()
+    }
+
+    private fun observePemissionGranted() {
+        viewModel.permissionGranted.observe(viewLifecycleOwner){granted ->
+            if (granted == true){
+                //用户点击了运行权限，这时候请求音乐数据
+                ServiceObserver.musics = LocalMusicUtils.getMusic(requireContext())
+                viewModel.musicsPrepared.value = true
+                viewModel.onPermissionGranted()
+            }
+        }
+    }
+
+    private fun initMusicAdapter() {
+        viewModel.adapter = MusicAdapter(MusicListener { song, position ->
+            //点击的item的position对应音乐列表的索引，索引改变会触发观察者模式
+            ServiceObserver.currentIndex.value = position
+
+    //            Toast.makeText(requireContext(),"${song.name} clicked",Toast.LENGTH_SHORT).show()
+            Timber.i("song's path: ${song.path}")
+
+            if (ServiceObserver.mediaPlayerCreated.value == true) {
+                //如果mediaplayer实例已经被创造了，直接将被点击的item代表的Uri提交给currentUri
+                ServiceObserver.currentUri.value = song.path
+            } else {
+                //如果mediaplayer实例还没被创造，说明前台服务还没有开始，遂启动服务
+                val intent = Intent(activity, BackGroundMusicService::class.java)
+                intent.putExtra("music_uri", song.path.toString())
+                requireActivity().startService(intent)
+            }
+        })
+
+        binding.musicRecyclerview.adapter = viewModel.adapter
     }
 
 
-
-//    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-//        super.onViewCreated(view, savedInstanceState)
-//        val currentUri = ServiceObserver.getCurrentUri(requireContext())
-//        if (currentUri != null){
-//            val intent = Intent(activity,BackGroundMusicService::class.java)
-//            intent.putExtra("music_uri", currentUri.toString())
-//            requireActivity().startService(intent)
-//        }
-//    }
-
-    // checking camera permissions
     private fun checkWriteAndReadPermission(): Boolean {
 
         val result1 = ContextCompat.checkSelfPermission(
@@ -303,17 +363,13 @@ class MusicFragment : Fragment() {
             requireContext(),
             Manifest.permission.WRITE_EXTERNAL_STORAGE
         ) == PackageManager.PERMISSION_GRANTED
-        val result3 = ContextCompat.checkSelfPermission(
-            requireContext(),
-            Manifest.permission.ACCESS_MEDIA_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-        if (result1 && result2 && result3){
+
+        if (result1 && result2){
             return true
         }else{
             requestWriteAndReadPermissionLauncher.launch(
                 arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                    Manifest.permission.ACCESS_MEDIA_LOCATION)
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE)
             )
             return false
         }

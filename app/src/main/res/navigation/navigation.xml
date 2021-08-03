@@ -7,7 +7,7 @@
 
     <fragment
         android:id="@+id/musicFragment"
-        android:name="person.shilei.chat.ui.MusicFragment"
+        android:name="person.shilei.musicplayer.ui.MusicFragment"
         android:label="MusicFragment"
         tools:layout="@layout/fragment_music"/>
 </navigation>

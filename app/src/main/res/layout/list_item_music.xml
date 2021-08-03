@@ -11,7 +11,7 @@
             type="Integer" />
         <variable
             name="musicListener"
-            type="person.shilei.chat.ui.MusicListener" />
+            type="person.shilei.musicplayer.ui.MusicListener" />
     </data>
 
     <RelativeLayout
