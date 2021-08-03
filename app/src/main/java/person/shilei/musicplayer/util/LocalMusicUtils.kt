@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import person.shilei.musicplayer.model.Song
+import timber.log.Timber
 
 object LocalMusicUtils {
 
@@ -33,11 +34,8 @@ object LocalMusicUtils {
 
                 val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,id)
 
-                var singer = ""
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    singer =
+                var singer =
                         cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST))
-                }
 
                 var duration = 0
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -55,6 +53,7 @@ object LocalMusicUtils {
                     val pair = splitNameSinger(name, singer)
                     name = pair.first
                     singer = pair.second
+//                    Timber.i("$name : $singer")
                     val song = Song(name,singer,size,duration,uri,albumId,id)
                     list.add(song)
                 }
@@ -75,14 +74,16 @@ object LocalMusicUtils {
      */
     fun splitNameSinger(
         name: String?,
-        singer: String
-    ): Pair<String?, String> {
+        singer: String?
+    ): Pair<String?, String?> {
         var name1 = name
         var singer1 = singer
         if (name1!!.contains(" - ")) {
             val str = name1.split(" - ".toRegex()).toTypedArray()
             if (str.size == 2) {
-                singer1 = str[0].trim()
+                if (singer1 == "<unknown>"){
+                    singer1 = str[0].trim()
+                }
                 name1 = str[1].trim()
             }
         }

@@ -19,17 +19,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
-import androidx.fragment.app.FragmentActivity
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import person.shilei.musicplayer.R
 import person.shilei.musicplayer.databinding.FragmentMusicBinding
 import person.shilei.musicplayer.databinding.ListItemMusicBinding
 import person.shilei.musicplayer.model.Song
-
 import person.shilei.musicplayer.service.BackGroundMusicService
+import person.shilei.musicplayer.ui.MusicViewModel
 import person.shilei.musicplayer.util.LocalMusicUtils
 import person.shilei.musicplayer.util.ServiceObserver
 import timber.log.Timber
@@ -37,7 +34,7 @@ import kotlin.random.Random
 
 class MusicFragment : Fragment() {
 
-    val requestWriteAndReadPermissionLauncher =
+    private val requestWriteAndReadPermissionLauncher =
         registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
         ){
@@ -66,6 +63,7 @@ class MusicFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        //检查读写权限，若有，则请求本地音乐列表数据
         if (checkWriteAndReadPermission()){
             Timber.i("checkStoragePermission: true")
             ServiceObserver.musics = LocalMusicUtils.getMusic(requireContext())
@@ -79,9 +77,12 @@ class MusicFragment : Fragment() {
     ): View? {
         binding = DataBindingUtil.inflate(inflater, R.layout.fragment_music,container,false)
 
+        //给音乐列表定义适配器，并传入自定义的item点击监听器
         viewModel.adapter = MusicAdapter(MusicListener {song, position ->
+            //点击的item的position对应音乐列表的索引，索引改变会触发观察者模式
             ServiceObserver.currentIndex.value = position
-            Toast.makeText(requireContext(),"${song.name} clicked",Toast.LENGTH_SHORT).show()
+
+//            Toast.makeText(requireContext(),"${song.name} clicked",Toast.LENGTH_SHORT).show()
             Timber.i("song's path: ${song.path}")
 
             if (ServiceObserver.mediaPlayerCreated.value == true){
@@ -320,35 +321,7 @@ class MusicFragment : Fragment() {
 
 }
 
-class MusicViewModel : ViewModel() {
 
-    lateinit var adapter:MusicAdapter
-
-    var playOrPause = true
-    fun playOrPauseToggle(){
-        playOrPause = !playOrPause
-    }
-
-    val permissionGranted = MutableLiveData<Boolean?>()
-    fun onPermissionGranted(){
-        permissionGranted.value = null
-    }
-
-    val musicsPrepared = MutableLiveData<Boolean?>()
-    fun onMusicsPrepared(){
-        musicsPrepared.value = null
-    }
-
-    fun musicItemClicked(){
-
-    }
-
-    fun submitMusics2Adapter(it: List<Song>, activity: FragmentActivity?) {
-        adapter.musics = it.toMutableList()
-        adapter.notifyDataSetChanged()
-        (activity as AppCompatActivity).supportActionBar?.title = "本地音乐(共${it.size}首歌)"
-    }
-}
 
 class MusicAdapter(val clickListener: MusicListener):RecyclerView.Adapter<MusicAdapter.ViewHolder>(){
 
