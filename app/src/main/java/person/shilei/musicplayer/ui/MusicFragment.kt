@@ -86,26 +86,6 @@ class MusicFragment : Fragment() {
         //viewModel里面变量的观察者
         observeMethods()
 
-
-
-
-        //数据源提交给列表的适配器
-//        if (ServiceObserver.musics.isNullOrEmpty()){
-//            //没有完整权限的时候（一般就只有一次）
-//            viewModel.musicsPrepared.observe(viewLifecycleOwner){ prepared ->
-//                if (prepared == true){
-//                    ServiceObserver.musics.let {
-//                        viewModel.submitMusics2Adapter(it!!,activity)
-//                    }
-//                }
-//            }
-//        }else{
-//            //有完整权限的时候
-//            ServiceObserver.musics.let {
-//                viewModel.submitMusics2Adapter(it!!,activity)
-//            }
-//        }
-
         //observe the media player entity whether created
         observeMediaPlayerCreated()
 
@@ -163,24 +143,34 @@ class MusicFragment : Fragment() {
     private fun observeCurrentIndexUpdate() {
         ServiceObserver.currentIndex.observe(viewLifecycleOwner){ currentIndx ->
             if (currentIndx != null){
-                viewModel.adapter.selectItem(currentIndx)
-                binding.musicRecyclerview.scrollToPosition(currentIndx)
-                (activity as AppCompatActivity).supportActionBar?.title =
-                    "本地音乐(第${currentIndx+1}/${ServiceObserver.sortedMusics.value?.size}首歌)"
-                val curSong = ServiceObserver.sortedMusics.value?.get(currentIndx)
-                val index = curSong?.name?.lastIndexOf('.')
-                val musicName = index?.let { curSong.name.substring(0, it) }
-                binding.musicName.text = musicName
-                if (curSong != null) {
-                    binding.singer.text = curSong.singer
-                }
-                if (curSong != null) {
-                    Glide.with(requireContext())
-                        .load(LocalMusicUtils.getArtQuick(curSong.albumId))
-                        .placeholder(R.drawable.ic_bx_album)
-                        .error(R.drawable.ic_bx_album)
-                        .centerCrop()
-                        .into(binding.albumImage)
+                //lock the wrong change
+                if (!ServiceObserver.sortModeChangeBringCurrentIndexLock){
+                    viewModel.adapter.selectItem(currentIndx)
+                    binding.musicRecyclerview.scrollToPosition(currentIndx)
+                    (activity as AppCompatActivity).supportActionBar?.title =
+                        "本地音乐(第${currentIndx+1}/${ServiceObserver.sortedMusics.value?.size}首歌)"
+                    val curSong = ServiceObserver.sortedMusics.value?.get(currentIndx)
+                    val index = curSong?.name?.lastIndexOf('.')
+                    val musicName = index?.let { curSong.name.substring(0, it) }
+                    binding.musicName.text = musicName
+                    if (curSong != null) {
+                        binding.singer.text = curSong.singer
+                    }
+                    if (curSong != null) {
+                        Glide.with(requireContext())
+                            .load(LocalMusicUtils.getArtQuick(curSong.albumId))
+                            .placeholder(R.drawable.ic_bx_album)
+                            .error(R.drawable.ic_bx_album)
+                            .centerCrop()
+                            .into(binding.albumImage)
+                    }
+                }else{
+                    viewModel.adapter.selectItem(currentIndx)
+                    binding.musicRecyclerview.scrollToPosition(currentIndx)
+                    (activity as AppCompatActivity).supportActionBar?.title =
+                        "本地音乐(第${currentIndx+1}/${ServiceObserver.sortedMusics.value?.size}首歌)"
+                    //free the lock
+                    ServiceObserver.freeLock()
                 }
             }
         }

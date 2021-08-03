@@ -16,6 +16,17 @@ object ServiceObserver {
     val sortedMusics = MutableLiveData<MutableList<Song>>()
 
     val sortMode = MutableLiveData(SortedMode.ADDED_DATE)
+    //flag to avoid the wrong change with the currentIndex change
+    var sortModeChangeBringCurrentIndexLock = false
+    fun freeLock(){
+        sortModeChangeBringCurrentIndexLock = false
+    }
+
+    var sortModeChangeBringCurrentIndexLockForService = false
+    fun freeLockForService(){
+        sortModeChangeBringCurrentIndexLockForService = false
+    }
+
     //观察音乐是否在播放
     val isPlaying = MutableLiveData<Boolean>()
     var mediaPlayerCreated = MutableLiveData(false)
@@ -54,6 +65,8 @@ object ServiceObserver {
         }
 
         if (currentIndex.value != null){
+            sortModeChangeBringCurrentIndexLock = true
+            sortModeChangeBringCurrentIndexLockForService = true
             currentIndex.value = sortedMusics.value?.indexOf(
                 sortedMusics.value?.find {
                     it.id == currentSongId
