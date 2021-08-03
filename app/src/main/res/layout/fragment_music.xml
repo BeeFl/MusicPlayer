@@ -61,6 +61,19 @@
             android:contentDescription="@string/fab_up"
             android:src="@drawable/ic_up"
             app:fabSize="mini" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/location"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:visibility="gone"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="60dp"
+            android:contentDescription="@string/fab_location"
+            android:src="@drawable/ic_location"
+            app:fabSize="mini" />
+
         <LinearLayout
             android:id="@+id/music_bottomsheet"
             android:layout_width="match_parent"

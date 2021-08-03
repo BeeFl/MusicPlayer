@@ -222,6 +222,16 @@ class MusicFragment : Fragment() {
         spinnerItemSelectedListener()
         //sort the music list
         sortButtonClickListener()
+        //location current song
+        locationBtnClickListener()
+    }
+
+    private fun locationBtnClickListener() {
+        binding.location.setOnClickListener {
+            ServiceObserver.currentIndex.value?.let {
+                binding.musicRecyclerview.scrollToPosition(it)
+            }
+        }
     }
 
     private fun sortButtonClickListener() {
@@ -289,9 +299,16 @@ class MusicFragment : Fragment() {
                 if (dy > 0) {
                     // Scrolling down
                     binding.top.visibility = View.GONE
-                } else {
+                    if (ServiceObserver.currentIndex.value != null){
+                        binding.location.visibility = View.VISIBLE
+                    }else{
+                        binding.location.visibility = View.GONE
+                    }
+
+                } else if (dy < 0){
                     // Scrolling up
                     binding.top.visibility = View.VISIBLE
+                    binding.location.visibility = View.GONE
                 }
             }
         })
