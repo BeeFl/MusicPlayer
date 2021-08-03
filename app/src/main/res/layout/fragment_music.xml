@@ -19,7 +19,7 @@
             android:orientation="vertical">
             <LinearLayout
                 android:orientation="horizontal"
-                android:paddingTop="8dp"
+                android:paddingTop="12dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
@@ -92,27 +92,21 @@
 
                 <TextView
                     android:id="@+id/music_name"
-                    android:layout_toEndOf="@id/card_view"
-                    android:singleLine="true"
-                    android:ellipsize="marquee"
-                    android:marqueeRepeatLimit="marquee_forever"
-                    android:scrollHorizontally="true"
                     android:textColor="@color/black"
-                    android:layout_marginStart="4dp"
                     android:layout_toStartOf="@id/prev"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    tools:text="给我一首歌的时间"/>
+                    tools:text="给我一首歌的时间"
+                    style="@style/marquee_textview" />
 
                 <TextView
                     android:id="@+id/singer"
-                    android:layout_toEndOf="@id/card_view"
                     android:layout_below="@id/music_name"
                     android:layout_toStartOf="@id/prev"
-                    android:layout_marginStart="4dp"
                     android:layout_marginTop="8dp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    style="@style/marquee_textview"
                     tools:text="周杰伦" />
 
                 <ImageButton

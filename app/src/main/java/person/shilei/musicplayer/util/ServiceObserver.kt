@@ -12,7 +12,7 @@ import java.util.*
 import kotlin.random.Random
 
 object ServiceObserver {
-    lateinit var musics:List<Song>
+    var musics:List<Song>? = null
 
     //观察音乐是否在播放
     val isPlaying = MutableLiveData<Boolean>()
@@ -35,20 +35,20 @@ object ServiceObserver {
 
     fun nextSong(){
         if (currentFlowMode == 0 || currentFlowMode == 2){
-            currentIndex.value = currentIndex.value?.plus(1)?.rem(musics.size)
+            currentIndex.value = currentIndex.value?.plus(1)?.rem(musics?.size!!)
         }else if (currentFlowMode == 1){
-            currentIndex.value = Random.nextInt(musics.size)
+            currentIndex.value = Random.nextInt(musics?.size!!)
         }
     }
 
     fun prevSong(){
         if (currentFlowMode == 0 || currentFlowMode == 2){
             if (currentIndex.value == 0){
-                currentIndex.value = musics.size
+                currentIndex.value = musics?.size!!
             }
             currentIndex.value = currentIndex.value?.minus(1)
         }else if (currentFlowMode == 1){
-            currentIndex.value = Random.nextInt(musics.size)
+            currentIndex.value = Random.nextInt(musics?.size!!)
         }
     }
 

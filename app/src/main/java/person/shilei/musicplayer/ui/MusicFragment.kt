@@ -19,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.recyclerview.widget.RecyclerView
@@ -65,7 +66,11 @@ class MusicFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        checkWriteAndReadPermission()
+        if (checkWriteAndReadPermission()){
+            Timber.i("checkStoragePermission: true")
+            ServiceObserver.musics = LocalMusicUtils.getMusic(requireContext())
+        }
+
     }
 
     override fun onCreateView(
@@ -78,37 +83,42 @@ class MusicFragment : Fragment() {
             ServiceObserver.currentIndex.value = position
             Toast.makeText(requireContext(),"${song.name} clicked",Toast.LENGTH_SHORT).show()
             Timber.i("song's path: ${song.path}")
-            if (checkWriteAndReadPermission()) {
-                Timber.i("checkStoragePermission: true")
-                if (ServiceObserver.mediaPlayerCreated.value == true){
-                    ServiceObserver.currentUri.value = song.path
-                }else{
-                    val intent = Intent(activity,BackGroundMusicService::class.java)
-                    intent.putExtra("music_uri",song.path.toString())
-                    requireActivity().startService(intent)
-                }
 
+            if (ServiceObserver.mediaPlayerCreated.value == true){
+                ServiceObserver.currentUri.value = song.path
             }else{
-                viewModel.permissionGranted.observe(viewLifecycleOwner){granted ->
-                    if (granted == true){
-                        val intent = Intent(activity,BackGroundMusicService::class.java)
-                        intent.putExtra("music_uri",song.path)
-                        requireActivity().startService(intent)
-                        viewModel.onPermissionGranted()
-                    }
-                }
+                val intent = Intent(activity,BackGroundMusicService::class.java)
+                intent.putExtra("music_uri",song.path.toString())
+                requireActivity().startService(intent)
             }
+
         })
+
+        viewModel.permissionGranted.observe(viewLifecycleOwner){granted ->
+            if (granted == true){
+                //用户点击了运行权限，这时候请求音乐数据
+                ServiceObserver.musics = LocalMusicUtils.getMusic(requireContext())
+                viewModel.musicsPrepared.value = true
+                viewModel.onPermissionGranted()
+            }
+        }
 
         binding.musicRecyclerview.adapter = viewModel.adapter
 
-        ServiceObserver.musics = LocalMusicUtils.getMusic(requireContext())
-        ServiceObserver.musics.let {
-            viewModel.adapter.musics = it.toMutableList()
-            viewModel.adapter.notifyDataSetChanged()
-            (activity as AppCompatActivity).supportActionBar?.title = "本地音乐(共${it.size}首歌)"
-//            ServiceObserver.randomArray = (0..it.size).toList().shuffled()
+        if (ServiceObserver.musics.isNullOrEmpty()){
+            viewModel.musicsPrepared.observe(viewLifecycleOwner){
+                if (it == true){
+                    ServiceObserver.musics.let {
+                        viewModel.submitMusics2Adapter(it!!,activity)
+                    }
+                }
+            }
+        }else{
+            ServiceObserver.musics.let {
+                viewModel.submitMusics2Adapter(it!!,activity)
+            }
         }
+
 
         binding.play.setOnClickListener {
             if (ServiceObserver.isPlaying.value == true){
@@ -121,11 +131,15 @@ class MusicFragment : Fragment() {
                 if (ServiceObserver.currentFlowMode == 0){
                     ServiceObserver.currentIndex.value = 0
                 }else{
-                    ServiceObserver.currentIndex.value = Random.nextInt(ServiceObserver.musics.size)
+                    ServiceObserver.currentIndex.value = ServiceObserver.musics?.size?.let { it1 ->
+                        Random.nextInt(
+                            it1
+                        )
+                    }
                 }
 
                 val intent = Intent(activity,BackGroundMusicService::class.java)
-                intent.putExtra("music_uri", ServiceObserver.musics[0].path.toString())
+                intent.putExtra("music_uri", ServiceObserver.musics?.get(0)?.path.toString())
                 requireActivity().startService(intent)
             }
         }
@@ -150,6 +164,7 @@ class MusicFragment : Fragment() {
         })
 
         binding.musicName.isSelected = true
+        binding.singer.isSelected = true
 
         val animator = ObjectAnimator.ofFloat(binding.albumImage, View.ROTATION, -360f, 0f)
         animator.duration = 3000
@@ -168,7 +183,7 @@ class MusicFragment : Fragment() {
 //                binding.albumImage.clearAnimation()
             }else{
                 //隐藏进度条
-                binding.seekbar.visibility = View.GONE
+                binding.seekbar.visibility = View.INVISIBLE
             }
         }
 
@@ -176,33 +191,22 @@ class MusicFragment : Fragment() {
             if (it != null){
                 viewModel.adapter.selectItem(it)
                 binding.musicRecyclerview.scrollToPosition(it)
-                (activity as AppCompatActivity).supportActionBar?.title = "本地音乐(第${it+1}/${ServiceObserver.musics.size}首歌)"
-                val curSong = ServiceObserver.musics[it]
-                val index = curSong.name?.lastIndexOf('.')
+                (activity as AppCompatActivity).supportActionBar?.title = "本地音乐(第${it+1}/${ServiceObserver.musics?.size}首歌)"
+                val curSong = ServiceObserver.musics?.get(it)
+                val index = curSong?.name?.lastIndexOf('.')
                 val musicName = index?.let { curSong.name.substring(0, it) }
                 binding.musicName.text = musicName
-                binding.singer.text = curSong.singer
-                Glide.with(requireContext())
-                    .load(LocalMusicUtils.getArtQuick(curSong.albumId))
-                    .placeholder(R.drawable.ic_bx_album)
-                    .error(R.drawable.ic_bx_album)
-                    .centerCrop()
-                    .into(binding.albumImage)
-//                val artworkBitmap = LocalMusicUtils.getArtwork(
-//                    requireContext(),
-//                    curSong.id,
-//                    curSong.albumId,
-//                    false
-//                )
-//
-//                if (artworkBitmap == null){
-//                    binding.albumImage.setImageResource(R.drawable.ic_bx_album)
-//                }else{
-//                    binding.albumImage.setImageBitmap(artworkBitmap)
-//                }
-//                val artworkBitmap = LocalMusicUtils.getAlbumPicture(requireContext(),curSong.albumId)
-//                binding.albumImage.setImageBitmap(artworkBitmap)
-
+                if (curSong != null) {
+                    binding.singer.text = curSong.singer
+                }
+                if (curSong != null) {
+                    Glide.with(requireContext())
+                        .load(LocalMusicUtils.getArtQuick(curSong.albumId))
+                        .placeholder(R.drawable.ic_bx_album)
+                        .error(R.drawable.ic_bx_album)
+                        .centerCrop()
+                        .into(binding.albumImage)
+                }
             }
         }
 
@@ -219,7 +223,7 @@ class MusicFragment : Fragment() {
             if (it == true){
                 binding.seekbar.visibility = View.VISIBLE
             }else{
-                binding.seekbar.visibility = View.GONE
+                binding.seekbar.visibility = View.INVISIBLE
             }
         }
 
@@ -275,6 +279,8 @@ class MusicFragment : Fragment() {
         return binding.root
     }
 
+
+
 //    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 //        super.onViewCreated(view, savedInstanceState)
 //        val currentUri = ServiceObserver.getCurrentUri(requireContext())
@@ -328,8 +334,19 @@ class MusicViewModel : ViewModel() {
         permissionGranted.value = null
     }
 
+    val musicsPrepared = MutableLiveData<Boolean?>()
+    fun onMusicsPrepared(){
+        musicsPrepared.value = null
+    }
+
     fun musicItemClicked(){
 
+    }
+
+    fun submitMusics2Adapter(it: List<Song>, activity: FragmentActivity?) {
+        adapter.musics = it.toMutableList()
+        adapter.notifyDataSetChanged()
+        (activity as AppCompatActivity).supportActionBar?.title = "本地音乐(共${it.size}首歌)"
     }
 }
 
